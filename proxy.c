@@ -32,11 +32,13 @@ int main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
     // TODO: Initialize OpenSSL library
-    
-    
+    OPENSSL_init_ssl(0, NULL);
+
     // TODO: Create SSL context and load certificate/private key files
     // Files: "server.crt" and "server.key"
-    SSL_CTX *ssl_ctx = NULL;
+    SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_server_method());
+    SSL_CTX_use_certificate_file(ssl_ctx, "server.crt", SSL_FILETYPE_PEM);
+    SSL_CTX_use_PrivateKey_file(ssl_ctx, "server.key", SSL_FILETYPE_PEM);
     
     if (ssl_ctx == NULL) {
         fprintf(stderr, "Error: SSL context not initialized\n");
@@ -79,22 +81,26 @@ int main(int argc, char *argv[]) {
         printf("Accepted connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         
         // TODO: Create SSL structure for this connection and perform SSL handshake
-        SSL *ssl = NULL;
+        SSL *ssl = SSL_new(ssl_ctx);
+        SSL_set_fd(ssl, client_socket);
         
-        
-        if (ssl != NULL) {
+        if (SSL_accept(ssl) <= 0) {
+            perror("Handshake failed");
+            continue;
+        } else {
             handle_request(ssl);
         }
         
         // TODO: Clean up SSL connection
-        
-        
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
         close(client_socket);
     }
 
     close(server_socket);
     // TODO: Clean up SSL context
-    
+    SSL_CTX_free(ssl_ctx);
+   
     return 0;
 }
 
