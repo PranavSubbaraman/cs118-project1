@@ -121,6 +121,9 @@ void handle_request(SSL *ssl) {
 
     // TODO: Read request from SSL connection
     bytes_read = 0;
+    if (!SSL_read_ex(ssl, buffer, sizeof(buffer) - 1, &bytes_read)) {
+        perror("Failed to read request");
+    }
     
     if (bytes_read <= 0) {
         return;
@@ -161,7 +164,9 @@ void send_local_file(SSL *ssl, const char *path) {
                          "<!DOCTYPE html><html><head><title>404 Not Found</title></head>"
                          "<body><h1>404 Not Found</h1></body></html>";
         // TODO: Send response via SSL
-        
+        if (!SSL_write_ex(ssl, response, strlen(response), &bytes_read)) {
+            perror("Failed to send 404 response");
+        }
         return;
     }
 
@@ -169,17 +174,31 @@ void send_local_file(SSL *ssl, const char *path) {
     if (strstr(path, ".html")) {
         response = "HTTP/1.1 200 OK\r\n"
                    "Content-Type: text/html; charset=UTF-8\r\n\r\n";
-    } else {
+    } else if (strstr(path, ".txt")) {
         response = "HTTP/1.1 200 OK\r\n"
                    "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
+    } else if (strstr(path, ".jpg")) {
+        response = "HTTP/1.1 200 OK\r\n"
+                   "Content-Type: image/jpeg; charset=UTF-8\r\n\r\n";
+    } else if (strstr(path, ".m3u8")) {
+        response = "HTTP/1.1 200 OK\r\n"
+                   "Content-Type: application/vnd.apple.mpegurl; charset=UTF-8\r\n\r\n";
+    } else {
+        response = "HTTP/1.1 200 OK\r\n"
+                   "Content-Type: application/octet-stream; charset=UTF-8\r\n\r\n";
     }
 
     // TODO: Send response header and file content via SSL
-    
+    if (!SSL_write_ex(ssl, response, strlen(response), &bytes_read)) {
+        perror("Failed to send 200 response");
+    }
 
     while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
         // TODO: Send file data via SSL
-        
+        size_t bytes_sent;
+        if (!SSL_write_ex(ssl, buffer, bytes_read, &bytes_sent)) {
+            perror("Failed to send file data");
+        }
     }
 
     fclose(file);
