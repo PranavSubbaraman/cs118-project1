@@ -232,6 +232,10 @@ void proxy_remote_file(SSL *ssl, const char *request) {
 
     while ((bytes_read = recv(remote_socket, buffer, sizeof(buffer), 0)) > 0) {
         // TODO: Forward response to client via SSL
+        size_t bytes_sent;
+        if (!SSL_write_ex(ssl, buffer, bytes_read, &bytes_sent)) {
+            perror("Failed to forward response from backend server to client");
+        }
         
     }
 
